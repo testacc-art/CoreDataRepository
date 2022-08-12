@@ -79,6 +79,20 @@ final class CRUDRepositoryTests: CoreDataXCTestCase {
         XCTAssertNil(diff, "CoreData object should match the one created but found diff \(diff ?? "").")
     }
 
+    func testCreateAsyncSuccess() async throws {
+        let movie = Movie(id: UUID(), title: "Create Success", releaseDate: Date(), boxOffice: 100)
+        let result: Result<Movie, CoreDataRepositoryError> = await repository.create(movie)
+        guard case var .success(resultMovie) = result else {
+            XCTFail("Not expecting a failed result")
+            return
+        }
+        
+        XCTAssertNotNil(resultMovie.url)
+        resultMovie.url = nil
+        let diff = CustomDump.diff(resultMovie, movie)
+        XCTAssertNil(diff)
+    }
+
     func testReadSuccess() throws {
         var movie = Movie(id: UUID(), title: "Read Success", releaseDate: Date(), boxOffice: 100)
         let fetchRequest = NSFetchRequest<RepoMovie>(entityName: "RepoMovie")
@@ -112,6 +126,28 @@ final class CRUDRepositoryTests: CoreDataXCTestCase {
             )
             .store(in: &cancellables)
         wait(for: [exp], timeout: 5)
+    }
+
+    func testReadAsyncSuccess() async throws {
+        let movie = Movie(id: UUID(), title: "Read Success", releaseDate: Date(), boxOffice: 100)
+        let createdMovie: Movie = try await viewContext.perform(schedule: .immediate, {
+            let object = RepoMovie(context: self.viewContext)
+            object.create(from: movie)
+            try self.viewContext.save()
+            return object.asUnmanaged
+        })
+        
+        let result: Result<Movie, CoreDataRepositoryError> = await repository.read(try XCTUnwrap(createdMovie.url))
+
+        guard case var .success(resultMovie) = result else {
+            XCTFail("Not expecting a failed result")
+            return
+        }
+        
+        XCTAssertNotNil(resultMovie.url)
+        resultMovie.url = nil
+        let diff = CustomDump.diff(resultMovie, movie)
+        XCTAssertNil(diff)
     }
 
     func testReadFailure() throws {
@@ -148,6 +184,31 @@ final class CRUDRepositoryTests: CoreDataXCTestCase {
             )
             .store(in: &cancellables)
         wait(for: [exp], timeout: 5)
+    }
+
+    func testReadAsyncFailure() async throws {
+        let movie = Movie(id: UUID(), title: "Read Failure", releaseDate: Date(), boxOffice: 100)
+        let createdMovie: Movie = try await viewContext.perform {
+            let object = RepoMovie(context: self.viewContext)
+            object.create(from: movie)
+            try self.viewContext.save()
+            return object.asUnmanaged
+        }
+        _ = try await viewContext.perform {
+            let objectID = self.viewContext.persistentStoreCoordinator?.managedObjectID(forURIRepresentation: try XCTUnwrap(createdMovie.url))
+            let object = try self.viewContext.existingObject(with: try XCTUnwrap(objectID))
+            self.viewContext.delete(object)
+            try self.viewContext.save()
+        }
+        
+        let result: Result<Movie, CoreDataRepositoryError> = await repository.read(try XCTUnwrap(createdMovie.url))
+
+        switch result {
+        case .success:
+            XCTFail("Not expecting a successful result")
+        case .failure:
+            XCTAssert(true)
+        }
     }
 
     func testUpdateSuccess() throws {
@@ -196,6 +257,30 @@ final class CRUDRepositoryTests: CoreDataXCTestCase {
         XCTAssertNil(diff, "CoreData movie should be updated with the new title, but found diff \(diff ?? "").")
     }
 
+    func testUpdateAsyncSuccess() async throws {
+        var movie = Movie(id: UUID(), title: "Update Success", releaseDate: Date(), boxOffice: 100)
+        let createdMovie: Movie = try await viewContext.perform(schedule: .immediate, {
+            let object = RepoMovie(context: self.viewContext)
+            object.create(from: movie)
+            try self.viewContext.save()
+            return object.asUnmanaged
+        })
+        
+        movie.title = "Update Success - Edited"
+        
+        let result: Result<Movie, CoreDataRepositoryError> = await repository.update(try XCTUnwrap(createdMovie.url), with: movie)
+
+        guard case var .success(resultMovie) = result else {
+            XCTFail("Not expecting a failed result")
+            return
+        }
+        
+        XCTAssertNotNil(resultMovie.url)
+        resultMovie.url = nil
+        let diff = CustomDump.diff(resultMovie, movie)
+        XCTAssertNil(diff)
+    }
+
     func testUpdateFailure() throws {
         var movie = Movie(id: UUID(), title: "Update Failure", releaseDate: Date(), boxOffice: 100)
         let fetchRequest = NSFetchRequest<RepoMovie>(entityName: "RepoMovie")
@@ -234,6 +319,34 @@ final class CRUDRepositoryTests: CoreDataXCTestCase {
             )
             .store(in: &cancellables)
         wait(for: [exp], timeout: 10)
+    }
+
+    func testUpdateAsyncFailure() async throws {
+        var movie = Movie(id: UUID(), title: "Update Success", releaseDate: Date(), boxOffice: 100)
+        let createdMovie: Movie = try await viewContext.perform(schedule: .immediate, {
+            let object = RepoMovie(context: self.viewContext)
+            object.create(from: movie)
+            try self.viewContext.save()
+            return object.asUnmanaged
+        })
+
+        _ = try await viewContext.perform {
+            let objectID = self.viewContext.persistentStoreCoordinator?.managedObjectID(forURIRepresentation: try XCTUnwrap(createdMovie.url))
+            let object = try self.viewContext.existingObject(with: try XCTUnwrap(objectID))
+            self.viewContext.delete(object)
+            try self.viewContext.save()
+        }
+        
+        movie.title = "Update Success - Edited"
+        
+        let result: Result<Movie, CoreDataRepositoryError> = await repository.update(try XCTUnwrap(createdMovie.url), with: movie)
+
+        switch result {
+        case .success:
+            XCTFail("Not expecting a successful result")
+        case .failure:
+            XCTAssert(true)
+        }
     }
 
     func testDeleteSuccess() throws {

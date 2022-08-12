@@ -42,7 +42,7 @@ extension CoreDataRepository {
     }
 
     public func create<Model: UnmanagedModel>(_ item: Model, transactionAuthor: String? = nil) async -> Result<Model, CoreDataRepositoryError> {
-        await context.performInScratchPad { scratchPad in
+        await context.performInScratchPad(schedule: .enqueued) { scratchPad in
             scratchPad.transactionAuthor = transactionAuthor
             let object = Model.RepoManaged(context: scratchPad)
             object.create(from: item)
@@ -75,7 +75,7 @@ extension CoreDataRepository {
     }
 
     public func read<Model: UnmanagedModel>(_ url: URL) async -> Result<Model, CoreDataRepositoryError> {
-        await context.performInChild { readContext in
+        await context.performInChild(schedule: .enqueued) { readContext in
             let id = try readContext.tryObjectId(from: url)
             let object = try readContext.notDeletedObject(for: id)
             let repoManaged: Model.RepoManaged = try object.asRepoManaged()
@@ -121,7 +121,7 @@ extension CoreDataRepository {
         with item: Model,
         transactionAuthor: String? = nil
     ) async -> Result<Model, CoreDataRepositoryError> {
-        await context.performInScratchPad { scratchPad in
+        await context.performInScratchPad(schedule: .enqueued) { scratchPad in
             let id = try scratchPad.tryObjectId(from: url)
             let object = try scratchPad.notDeletedObject(for: id)
             let repoManaged: Model.RepoManaged = try object.asRepoManaged()
@@ -165,7 +165,7 @@ extension CoreDataRepository {
         _ url: URL,
         transactionAuthor: String? = nil
     ) async -> Result<Void, CoreDataRepositoryError> {
-        await context.performInScratchPad { scratchPad in
+        await context.performInScratchPad(schedule: .enqueued) { scratchPad in
             let id = try scratchPad.tryObjectId(from: url)
             let object = try scratchPad.notDeletedObject(for: id)
             object.prepareForDeletion()
@@ -180,12 +180,7 @@ extension CoreDataRepository {
     /// - Returns: AnyPublisher<Model, CoreDataRepositoryError>
     public func readSubscription<Model: UnmanagedModel>(_ url: URL) -> AnyPublisher<Model, CoreDataRepositoryError> {
         let readContext = context.childContext()
-        let readPublisher: AnyPublisher<Model.RepoManaged, CoreDataRepositoryError> = readContext.objectId(from: url)
-            .mapToNSManagedObject(context: readContext)
-            .map(to: Model.RepoManaged.self)
-            .mapToRepoError()
-            .publisher
-            .eraseToAnyPublisher()
+        let readPublisher: AnyPublisher<Model.RepoManaged, CoreDataRepositoryError> = readRepoManaged(url, readContext: readContext)
         var subjectCancellable: AnyCancellable?
         return Publishers.Create<Model, CoreDataRepositoryError> { [weak self] subscriber in
             let subject = PassthroughSubject<Model, CoreDataRepositoryError>()
@@ -223,6 +218,33 @@ extension CoreDataRepository {
             return AnyCancellable {
                 subscription?.cancel()
                 self?.subscriptions.removeAll(where: { $0.id == id as AnyHashable })
+            }
+        }.eraseToAnyPublisher()
+    }
+
+    private static func getObjectId(
+        fromUrl url: URL,
+        context: NSManagedObjectContext
+    ) -> Result<NSManagedObjectID, CoreDataRepositoryError> {
+        guard let objectId = context.persistentStoreCoordinator?.managedObjectID(forURIRepresentation: url) else {
+            return Result.failure(.failedToGetObjectIdFromUrl(url))
+        }
+        return .success(objectId)
+    }
+
+    private func readRepoManaged<T>(
+        _ url: URL,
+        readContext: NSManagedObjectContext
+    ) -> AnyPublisher<T, CoreDataRepositoryError>
+        where T: RepositoryManagedModel
+    {
+        Future { promise in
+            readContext.performAndWait {
+                let result: Result<T, CoreDataRepositoryError> = readContext.objectId(from: url)
+                    .mapToNSManagedObject(context: readContext)
+                    .map(to: T.self)
+                    .mapToRepoError()
+                promise(result)
             }
         }.eraseToAnyPublisher()
     }

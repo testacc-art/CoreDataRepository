@@ -31,10 +31,14 @@ extension NSManagedObjectContext {
         do {
             output = try await scratchPad.perform(schedule: schedule, { try block(scratchPad) })
         } catch let error as CoreDataRepositoryError {
-            scratchPad.rollback()
+            await scratchPad.perform {
+                scratchPad.rollback()
+            }
             return .failure(error)
         } catch let error as NSError {
-            scratchPad.rollback()
+            await scratchPad.perform {
+                scratchPad.rollback()
+            }
             return .failure(CoreDataRepositoryError.coreData(error))
         }
         return .success(output)
