@@ -26,6 +26,13 @@ extension CoreDataRepository {
         return _fetch(request, fetchContext: fetchContext)
     }
 
+    public func fetch<Model: UnmanagedModel>(_ request: NSFetchRequest<Model.RepoManaged>) async -> Result<[Model], CoreDataRepositoryError>
+    {
+        await context.performInChild { fetchContext in
+            try fetchContext.fetch(request).map(\.asUnmanaged)
+        }
+    }
+
     /// Fetch an array of value types corresponding to a NSManagedObject sub class and receive
     /// updates for changes in the context.
     /// - Parameters
