@@ -385,6 +385,25 @@ final class CRUDRepositoryTests: CoreDataXCTestCase {
         XCTAssert(afterDeleteCount == 0, "CoreData should have no objects after delete but found \(afterDeleteCount)")
     }
 
+    func testDeleteAsyncSuccess() async throws {
+        let movie = Movie(id: UUID(), title: "Delete Success", releaseDate: Date(), boxOffice: 100)
+        let createdMovie: Movie = try await viewContext.perform(schedule: .immediate, {
+            let object = RepoMovie(context: self.viewContext)
+            object.create(from: movie)
+            try self.viewContext.save()
+            return object.asUnmanaged
+        })
+        
+        let result: Result<Void, CoreDataRepositoryError> = await repository.delete(try XCTUnwrap(createdMovie.url))
+
+        switch result {
+        case .success:
+            XCTAssert(true)
+        case .failure:
+            XCTFail("Not expecting a failed result")
+        }
+    }
+
     func testDeleteFailure() throws {
         var movie = Movie(id: UUID(), title: "Delete Failure", releaseDate: Date(), boxOffice: 100)
         let fetchRequest = NSFetchRequest<RepoMovie>(entityName: "RepoMovie")
@@ -419,6 +438,32 @@ final class CRUDRepositoryTests: CoreDataXCTestCase {
             )
             .store(in: &cancellables)
         wait(for: [exp], timeout: 5)
+    }
+
+    func testDeleteAsyncFailure() async throws {
+        let movie = Movie(id: UUID(), title: "Delete Failure", releaseDate: Date(), boxOffice: 100)
+        let createdMovie: Movie = try await viewContext.perform(schedule: .immediate, {
+            let object = RepoMovie(context: self.viewContext)
+            object.create(from: movie)
+            try self.viewContext.save()
+            return object.asUnmanaged
+        })
+
+        _ = try await viewContext.perform {
+            let objectID = self.viewContext.persistentStoreCoordinator?.managedObjectID(forURIRepresentation: try XCTUnwrap(createdMovie.url))
+            let object = try self.viewContext.existingObject(with: try XCTUnwrap(objectID))
+            self.viewContext.delete(object)
+            try self.viewContext.save()
+        }
+        
+        let result: Result<Void, CoreDataRepositoryError> = await repository.delete(try XCTUnwrap(createdMovie.url))
+
+        switch result {
+        case .success:
+            XCTFail("Not expecting a success result")
+        case .failure:
+            XCTAssert(true)
+        }
     }
 
     func testReadSubscriptionSuccess() throws {
