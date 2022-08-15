@@ -41,7 +41,7 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
         try super.setUpWithError()
         _repository = CoreDataRepository(context: viewContext)
         objectIDs = movies.map { $0.asRepoManaged(in: self.viewContext).objectID }
-        try! viewContext.save()
+        try viewContext.save()
     }
 
     override func tearDownWithError() throws {
@@ -91,7 +91,7 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
         let result: AnyPublisher<[[String: Decimal]], CoreDataRepositoryError> = repository.sum(
             predicate: NSPredicate(value: true),
             entityDesc: RepoMovie.entity(),
-            attributeDesc: RepoMovie.entity().attributesByName.values.first(where: { $0.name == "boxOffice" })!
+            attributeDesc: try XCTUnwrap(RepoMovie.entity().attributesByName.values.first(where: { $0.name == "boxOffice" }))
         )
         result.subscribe(on: backgroundQueue)
             .receive(on: mainQueue)
@@ -136,7 +136,7 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
         let result: AnyPublisher<[[String: Decimal]], CoreDataRepositoryError> = repository.average(
             predicate: NSPredicate(value: true),
             entityDesc: RepoMovie.entity(),
-            attributeDesc: RepoMovie.entity().attributesByName.values.first(where: { $0.name == "boxOffice" })!
+            attributeDesc: try XCTUnwrap(RepoMovie.entity().attributesByName.values.first(where: { $0.name == "boxOffice" }))
         )
         result.subscribe(on: backgroundQueue)
             .receive(on: mainQueue)
@@ -185,7 +185,7 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
         let result: AnyPublisher<[[String: Decimal]], CoreDataRepositoryError> = repository.min(
             predicate: NSPredicate(value: true),
             entityDesc: RepoMovie.entity(),
-            attributeDesc: RepoMovie.entity().attributesByName.values.first(where: { $0.name == "boxOffice" })!
+            attributeDesc: try XCTUnwrap(RepoMovie.entity().attributesByName.values.first(where: { $0.name == "boxOffice" }))
         )
         result.subscribe(on: backgroundQueue)
             .receive(on: mainQueue)
@@ -234,7 +234,7 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
         let result: AnyPublisher<[[String: Decimal]], CoreDataRepositoryError> = repository.max(
             predicate: NSPredicate(value: true),
             entityDesc: RepoMovie.entity(),
-            attributeDesc: RepoMovie.entity().attributesByName.values.first(where: { $0.name == "boxOffice" })!
+            attributeDesc: try XCTUnwrap(RepoMovie.entity().attributesByName.values.first(where: { $0.name == "boxOffice" }))
         )
         result.subscribe(on: backgroundQueue)
             .receive(on: mainQueue)
