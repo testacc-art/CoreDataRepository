@@ -74,6 +74,17 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
         XCTAssert(firstValue == 5, "Result value (count) should equal number of movies.")
     }
 
+    func testCountAsyncSuccess() async throws {
+        let result: Result<[[String: Int]], CoreDataRepositoryError> = await repository.count(predicate: NSPredicate(value: true), entityDesc: RepoMovie.entity())
+        switch result {
+        case let .success(values):
+            let firstValue = try XCTUnwrap(values.first?.values.first)
+            XCTAssert(firstValue == 5, "Result value (count) should equal number of movies.")
+        case .failure:
+            XCTFail("Not expecting failure")
+        }
+    }
+
     func testSumSuccess() throws {
         let exp = expectation(description: "Get sum of CoreData Movies boxOffice")
         var values: [[String: Decimal]] = []
@@ -102,6 +113,21 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
             firstValue == 150,
             "Result value (sum) should equal sum of movies box office."
         )
+    }
+
+    func testSumAsyncSuccess() async throws {
+        let result: Result<[[String: Decimal]], CoreDataRepositoryError> = await repository.sum(
+            predicate: NSPredicate(value: true),
+            entityDesc: RepoMovie.entity(),
+            attributeDesc: try XCTUnwrap(RepoMovie.entity().attributesByName.values.first(where: { $0.name == "boxOffice" }))
+        )
+        switch result {
+        case let .success(values):
+            let firstValue = try XCTUnwrap(values.first?.values.first)
+            XCTAssertEqual(firstValue, 150, "Result value (sum) should equal number of movies.")
+        case .failure:
+            XCTFail("Not expecting failure")
+        }
     }
 
     func testAverageSuccess() throws {
@@ -134,6 +160,25 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
         )
     }
 
+    func testAverageAsyncSuccess() async throws {
+        let result: Result<[[String: Decimal]], CoreDataRepositoryError> = await repository.average(
+            predicate: NSPredicate(value: true),
+            entityDesc: RepoMovie.entity(),
+            attributeDesc: try XCTUnwrap(RepoMovie.entity().attributesByName.values.first(where: { $0.name == "boxOffice" }))
+        )
+        switch result {
+        case let .success(values):
+            let firstValue = try XCTUnwrap(values.first?.values.first)
+            XCTAssertEqual(
+                firstValue,
+                30,
+                "Result value should equal average of movies box office."
+            )
+        case .failure:
+            XCTFail("Not expecting failure")
+        }
+    }
+
     func testMinSuccess() throws {
         let exp = expectation(description: "Get average of CoreData Movies boxOffice")
         var values: [[String: Decimal]] = []
@@ -160,8 +205,27 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
         let firstValue = try XCTUnwrap(values.first?.values.first)
         XCTAssert(
             firstValue == 10,
-            "Result value should equal average of movies box office."
+            "Result value should equal min of movies box office."
         )
+    }
+
+    func testMinAsyncSuccess() async throws {
+        let result: Result<[[String: Decimal]], CoreDataRepositoryError> = await repository.min(
+            predicate: NSPredicate(value: true),
+            entityDesc: RepoMovie.entity(),
+            attributeDesc: try XCTUnwrap(RepoMovie.entity().attributesByName.values.first(where: { $0.name == "boxOffice" }))
+        )
+        switch result {
+        case let .success(values):
+            let firstValue = try XCTUnwrap(values.first?.values.first)
+            XCTAssertEqual(
+                firstValue,
+                10,
+                "Result value should equal min of movies box office."
+            )
+        case .failure:
+            XCTFail("Not expecting failure")
+        }
     }
 
     func testMaxSuccess() throws {
@@ -190,7 +254,26 @@ final class AggregateRepositoryTests: CoreDataXCTestCase {
         let firstValue = try XCTUnwrap(values.first?.values.first)
         XCTAssert(
             firstValue == 50,
-            "Result value should equal average of movies box office."
+            "Result value should equal max of movies box office."
         )
+    }
+
+    func testMaxAsyncSuccess() async throws {
+        let result: Result<[[String: Decimal]], CoreDataRepositoryError> = await repository.max(
+            predicate: NSPredicate(value: true),
+            entityDesc: RepoMovie.entity(),
+            attributeDesc: try XCTUnwrap(RepoMovie.entity().attributesByName.values.first(where: { $0.name == "boxOffice" }))
+        )
+        switch result {
+        case let .success(values):
+            let firstValue = try XCTUnwrap(values.first?.values.first)
+            XCTAssertEqual(
+                firstValue,
+                50,
+                "Result value should equal max of movies box office."
+            )
+        case .failure:
+            XCTFail("Not expecting failure")
+        }
     }
 }

@@ -82,6 +82,20 @@ extension CoreDataRepository {
         }.eraseToAnyPublisher()
     }
 
+    private static func send<Value>(
+        context: NSManagedObjectContext,
+        request: NSFetchRequest<NSDictionary>
+    ) async -> Result<[[String: Value]], CoreDataRepositoryError> where Value: Numeric {
+        await context.performInScratchPad { scratchPad in
+            do {
+                let result: [[String: Value]] = try Self.aggregate(context: scratchPad, request: request)
+                return result
+            } catch {
+                throw CoreDataRepositoryError.coreData(error as NSError)
+            }
+        }
+    }
+
     // MARK: Public Functions
 
     /// Calculate the count for a fetchRequest
@@ -110,6 +124,25 @@ extension CoreDataRepository {
                 }
             }
         }.eraseToAnyPublisher()
+    }
+
+    public func count<Value: Numeric>(
+        predicate: NSPredicate,
+        entityDesc: NSEntityDescription
+    ) async -> Result<[[String: Value]], CoreDataRepositoryError> {
+        let _request = NSFetchRequest<NSDictionary>(entityName: entityDesc.name ?? "")
+        _request.predicate = predicate
+        _request
+            .sortDescriptors =
+            [NSSortDescriptor(key: entityDesc.attributesByName.values.first!.name, ascending: true)]
+        return await context.performInScratchPad { scratchPad in
+            do {
+                let count = try scratchPad.count(for: _request)
+                return [["countOf\(entityDesc.name ?? "")": Value(exactly: count) ?? Value.zero]]
+            } catch {
+                throw CoreDataRepositoryError.coreData(error as NSError)
+            }
+        }
     }
 
     /// Calculate the sum for a fetchRequest
@@ -141,6 +174,25 @@ extension CoreDataRepository {
         return Self.send(context: context, request: _request)
     }
 
+    public func sum<Value: Numeric>(
+        predicate: NSPredicate,
+        entityDesc: NSEntityDescription,
+        attributeDesc: NSAttributeDescription,
+        groupBy: NSAttributeDescription? = nil
+    ) async -> Result<[[String: Value]], CoreDataRepositoryError> {
+        let _request = request(
+            function: .sum,
+            predicate: predicate,
+            entityDesc: entityDesc,
+            attributeDesc: attributeDesc,
+            groupBy: groupBy
+        )
+        guard entityDesc == attributeDesc.entity else {
+            return .failure(.propertyDoesNotMatchEntity)
+        }
+        return await Self.send(context: context, request: _request)
+    }
+
     /// Calculate the average for a fetchRequest
     /// - Parameters:
     ///     - predicate: NSPredicate
@@ -168,6 +220,25 @@ extension CoreDataRepository {
                 .eraseToAnyPublisher()
         }
         return Self.send(context: context, request: _request)
+    }
+
+    public func average<Value: Numeric>(
+        predicate: NSPredicate,
+        entityDesc: NSEntityDescription,
+        attributeDesc: NSAttributeDescription,
+        groupBy: NSAttributeDescription? = nil
+    ) async -> Result<[[String: Value]], CoreDataRepositoryError> {
+        let _request = request(
+            function: .average,
+            predicate: predicate,
+            entityDesc: entityDesc,
+            attributeDesc: attributeDesc,
+            groupBy: groupBy
+        )
+        guard entityDesc == attributeDesc.entity else {
+            return .failure(.propertyDoesNotMatchEntity)
+        }
+        return await Self.send(context: context, request: _request)
     }
 
     /// Calculate the min for a fetchRequest
@@ -199,6 +270,25 @@ extension CoreDataRepository {
         return Self.send(context: context, request: _request)
     }
 
+    public func min<Value: Numeric>(
+        predicate: NSPredicate,
+        entityDesc: NSEntityDescription,
+        attributeDesc: NSAttributeDescription,
+        groupBy: NSAttributeDescription? = nil
+    ) async -> Result<[[String: Value]], CoreDataRepositoryError> {
+        let _request = request(
+            function: .min,
+            predicate: predicate,
+            entityDesc: entityDesc,
+            attributeDesc: attributeDesc,
+            groupBy: groupBy
+        )
+        guard entityDesc == attributeDesc.entity else {
+            return .failure(.propertyDoesNotMatchEntity)
+        }
+        return await Self.send(context: context, request: _request)
+    }
+
     /// Calculate the max for a fetchRequest
     /// - Parameters:
     ///     - predicate: NSPredicate
@@ -226,6 +316,25 @@ extension CoreDataRepository {
                 .eraseToAnyPublisher()
         }
         return Self.send(context: context, request: _request)
+    }
+
+    public func max<Value: Numeric>(
+        predicate: NSPredicate,
+        entityDesc: NSEntityDescription,
+        attributeDesc: NSAttributeDescription,
+        groupBy: NSAttributeDescription? = nil
+    ) async -> Result<[[String: Value]], CoreDataRepositoryError> {
+        let _request = request(
+            function: .max,
+            predicate: predicate,
+            entityDesc: entityDesc,
+            attributeDesc: attributeDesc,
+            groupBy: groupBy
+        )
+        guard entityDesc == attributeDesc.entity else {
+            return .failure(.propertyDoesNotMatchEntity)
+        }
+        return await Self.send(context: context, request: _request)
     }
 }
 
