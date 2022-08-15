@@ -68,6 +68,17 @@ final class FetchRepositoryTests: CoreDataXCTestCase {
         wait(for: [exp], timeout: 5)
     }
 
+    func testFetchAsyncSuccess() async throws {
+        let result: Result<[Movie], CoreDataRepositoryError> = await repository.fetch(fetchRequest)
+        switch result {
+        case let .success(movies):
+            XCTAssert(movies.count == 5, "Result items count should match expectation")
+            XCTAssert(movies == self.expectedMovies, "Result items should match expectations")
+        case .failure:
+            XCTFail("Not expecting failure")
+        }
+    }
+
     func testFetchSubscriptionSuccess() throws {
         let firstExp = expectation(description: "Fetch movies from CoreData")
         let secondExp = expectation(description: "Fetch movies again after CoreData context is updated")
