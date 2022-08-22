@@ -101,7 +101,7 @@ final class FetchRepositoryTests: CoreDataXCTestCase {
 
             })
             .store(in: &cancellables)
-        wait(for: [firstExp], timeout: 5)
+        wait(for: [firstExp], timeout: 10)
         try repositoryContext().performAndWait {
             do {
                 let objectId = try container().persistentStoreCoordinator
@@ -112,6 +112,6 @@ final class FetchRepositoryTests: CoreDataXCTestCase {
                 XCTFail("Failed to update repository: \(error.localizedDescription)")
             }
         }
-        wait(for: [secondExp], timeout: 5)
+        wait(for: [secondExp], timeout: 10)
     }
 }
