@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         platform: [macOS]
-        xcode: [12.4, 12.5.1, 13.2]
+        xcode: [ 13.2] # 12.4, 12.5.1,
         # Swift: 5.3, 5.4.2, 5.5.2
     steps:
       - uses: actions/checkout@v2
